@@ -191,7 +191,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--output",
         required=True,
         type=str,
-        help="Output directory or file path (.json, .md, or .csv) for evaluation reports.",
+        help=(
+            "Output path for evaluation reports. With one model, .json, .md, .markdown, "
+            "or .csv writes a report and its companion. Other paths are directories. "
+            "A note is printed when a path with an extension is used as a directory."
+        ),
     )
     eval_parser.add_argument(
         "--confidence-intervals",
@@ -942,7 +946,9 @@ def _handle_evaluate(args: argparse.Namespace) -> int:
             print(f"Warning [{res.model_name}]: {warning_msg}", file=sys.stderr)
 
     out_path = Path(args.output)
-    is_single_file = out_path.suffix.lower() in {".json", ".md", ".csv"} and len(results) == 1
+    suffix = out_path.suffix.lower()
+    file_suffixes = {".json", ".md", ".markdown", ".csv"}
+    is_single_file = suffix in file_suffixes and len(results) == 1
 
     history_store: ResultHistoryStore | None = None
     if args.history_file:
@@ -953,7 +959,6 @@ def _handle_evaluate(args: argparse.Namespace) -> int:
 
     if is_single_file:
         res = results[0]
-        suffix = out_path.suffix.lower()
         if suffix == ".json":
             ReportGenerator.save_json(res, out_path)
             md_companion = out_path.with_suffix(".md")
@@ -961,7 +966,7 @@ def _handle_evaluate(args: argparse.Namespace) -> int:
             if history_store:
                 history_store.record(res, report_path=out_path)
             print(f"Saved evaluation reports: {out_path}, {md_companion}")
-        elif suffix == ".md":
+        elif suffix in {".md", ".markdown"}:
             ReportGenerator.save_markdown(res, out_path)
             json_companion = out_path.with_suffix(".json")
             ReportGenerator.save_json(res, json_companion)
@@ -979,6 +984,17 @@ def _handle_evaluate(args: argparse.Namespace) -> int:
 
     out_dir = out_path
     out_dir.mkdir(parents=True, exist_ok=True)
+    if suffix:
+        reason = (
+            f"{out_path.suffix!r} is an unsupported extension"
+            if suffix not in file_suffixes
+            else "more than one model was evaluated"
+        )
+        print(
+            f"Note: Using --output {out_dir} as a directory because {reason}. "
+            "Single-file output requires one model and a .json, .md, .markdown, or .csv extension.",
+            file=sys.stderr,
+        )
 
     written_files: list[str] = []
     for res in results:

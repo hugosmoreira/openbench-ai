@@ -33,7 +33,7 @@ Evaluate one or more pre-generated model response files against a dataset or YAM
 | `--difficulty` |  |  |  | Optional difficulty filter(s) (easy, medium, hard). |
 | `--ids-file` |  |  |  | Optional path to a file listing dataset record IDs to evaluate (like-for-like subset evaluation). |
 | `--history-file` |  |  |  | Optional path to local JSONL history file to record evaluation summary. |
-| `--output` | yes |  |  | Output directory or file path (.json, .md, or .csv) for evaluation reports. |
+| `--output` | yes |  |  | Output path for evaluation reports. With one model, .json, .md, .markdown, or .csv writes a report and its companion. Other paths are directories. A note is printed when a path with an extension is used as a directory. |
 | `--confidence-intervals` |  |  |  | *(v0.4.0)* add a 'statistics' block with percentile bootstrap CIs over items (output is unchanged without this flag). |
 | `--confidence-level` |  | `0.95` |  | *(v0.4.0)* CI level for --confidence-intervals (default 0.95). |
 | `--resamples` |  | `10000` |  | *(v0.4.0)* bootstrap resamples for --confidence-intervals (default 10000). |

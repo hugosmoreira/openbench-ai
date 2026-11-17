@@ -135,6 +135,68 @@ def test_cli_compare_fewer_than_two_files_fails(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
+    ("suffix", "companion"),
+    [(".json", ".md"), (".md", ".json"), (".csv", ".json"),
+     (".markdown", ".json"), (".MARKDOWN", ".json")],
+)
+def test_cli_evaluate_single_file_output(tmp_path, capsys, suffix, companion):
+    root = Path(__file__).resolve().parents[1]
+    output = tmp_path / f"report{suffix}"
+    assert main([
+        "evaluate", "--dataset", str(root / "datasets/reasoning/sample.jsonl"),
+        "--responses", str(root / "examples/sample_responses.json"), "--output", str(output),
+    ]) == 0
+    assert output.is_file()
+    assert output.with_suffix(companion).is_file()
+    if suffix.lower() in {".md", ".markdown"}:
+        assert "AlphaBaseline-7B" in output.read_text(encoding="utf-8")
+    assert capsys.readouterr().err == ""
+
+
+@pytest.mark.parametrize(
+    ("suffix", "multiple", "notice"),
+    [
+        ("", False, None),
+        ("", True, None),
+        (".txt", False, "unsupported extension"),
+        (".html", False, "unsupported extension"),
+        (".json", True, "more than one model"),
+        (".md", True, "more than one model"),
+        (".markdown", True, "more than one model"),
+        (".csv", True, "more than one model"),
+    ],
+)
+def test_cli_evaluate_directory_output(tmp_path, capsys, suffix, multiple, notice):
+    root = Path(__file__).resolve().parents[1]
+    responses = root / "examples/sample_responses.json"
+    models = {"alphabaseline-7b"}
+    if multiple:
+        first = json.loads(responses.read_text(encoding="utf-8"))
+        second = {**first, "model_name": "SecondModel"}
+        responses = tmp_path / "models.json"
+        responses.write_text(json.dumps({"models": [first, second]}), encoding="utf-8")
+        models.add("secondmodel")
+    output = tmp_path / f"report{suffix}"
+    assert main([
+        "evaluate", "--dataset", str(root / "datasets/reasoning/sample.jsonl"),
+        "--responses", str(responses), "--output", str(output),
+    ]) == 0
+    assert output.is_dir()
+    assert {p.name for p in output.iterdir()} == {
+        f"{model}.{extension}" for model in models for extension in ("json", "md")
+    }
+    captured = capsys.readouterr()
+    assert "Reports written to:" in captured.out
+    if notice is None:
+        assert captured.err == ""
+    else:
+        assert str(output) in captured.err
+        assert "as a directory" in captured.err
+        assert notice in captured.err
+        assert all(ext in captured.err for ext in (".json", ".md", ".markdown", ".csv"))
+
+
+@pytest.mark.parametrize(
     ("host", "browser_host"),
     [("127.0.0.1", "127.0.0.1"), ("localhost", "localhost"),
      ("0.0.0.0", "127.0.0.1"), ("::", "[::1]"), ("::1", "[::1]"),
