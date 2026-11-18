@@ -46,7 +46,7 @@ Compare two or more JSON evaluation result files.
 | Argument | Required | Default | Choices | Help |
 | :--- | :---: | :--- | :--- | :--- |
 | `--results` | yes |  |  | Paths to evaluation result JSON files (provide at least two files). |
-| `--output` | yes |  |  | Output file path (.md, .json, or .csv) or directory for the comparison report. |
+| `--output` | yes |  |  | Output path for comparison reports. .json and .csv write one report. .md and .markdown write a Markdown report and a JSON companion. Other paths are directories. A note is printed when a path with an extension is used as a directory. |
 
 ## `openbench list-datasets`
 

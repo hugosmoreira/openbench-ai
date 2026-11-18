@@ -134,6 +134,77 @@ def test_cli_compare_fewer_than_two_files_fails(tmp_path: Path) -> None:
     assert code == 2
 
 
+@pytest.fixture
+def compare_result_files(tmp_path, capsys):
+    root = Path(__file__).resolve().parents[1]
+    inputs = tmp_path / "inputs"
+    inputs.mkdir()
+    sample = json.loads((root / "examples/sample_responses.json").read_text(encoding="utf-8"))
+    results = []
+    for model in ("ModelA", "ModelB", "ModelC"):
+        responses = inputs / f"{model}-responses.json"
+        responses.write_text(json.dumps({**sample, "model_name": model}), encoding="utf-8")
+        result = inputs / f"{model}.json"
+        assert main([
+            "evaluate", "--dataset", str(root / "datasets/reasoning/sample.jsonl"),
+            "--responses", str(responses), "--output", str(result),
+        ]) == 0
+        results.append(str(result))
+    assert capsys.readouterr().err == ""
+    return results
+
+
+@pytest.mark.parametrize(
+    ("suffix", "count", "companion"),
+    [
+        (".json", 2, None), (".csv", 2, None), (".md", 2, ".json"),
+        (".markdown", 2, ".json"), (".MARKDOWN", 2, ".json"),
+        (".md", 3, ".json"), (".markdown", 3, ".json"),
+    ],
+)
+def test_cli_compare_single_file_output(tmp_path, capsys, compare_result_files, suffix, count, companion):
+    output = tmp_path / f"comparison{suffix}"
+    assert main([
+        "compare", "--results", *compare_result_files[:count], "--output", str(output),
+    ]) == 0
+    assert output.is_file()
+    expected = {output.name, "inputs"}
+    if companion:
+        expected.add(output.with_suffix(companion).name)
+    assert {path.name for path in tmp_path.iterdir()} == expected
+    report = output.read_text(encoding="utf-8")
+    for model in ("ModelA", "ModelB", "ModelC")[:count]:
+        assert model in report
+
+    captured = capsys.readouterr()
+    assert captured.err == ""
+    if companion:
+        assert captured.out == f"Comparison reports written to: {output}, {output.with_suffix(companion)}\n"
+    else:
+        assert captured.out == f"Comparison {suffix[1:].upper()} report written to: {output}\n"
+
+
+@pytest.mark.parametrize("suffix", ["", ".txt", ".html", ".LOG"])
+def test_cli_compare_directory_output(tmp_path, capsys, compare_result_files, suffix):
+    output = tmp_path / f"comparison{suffix}"
+    assert main([
+        "compare", "--results", *compare_result_files[:2], "--output", str(output),
+    ]) == 0
+    assert output.is_dir()
+    assert {path.name for path in output.iterdir()} == {"comparison.md", "comparison.json"}
+    captured = capsys.readouterr()
+    assert captured.out == (
+        f"Comparison reports written to: {output / 'comparison.md'}, {output / 'comparison.json'}\n"
+    )
+    if suffix:
+        assert captured.err == (
+            f"Note: Using --output {output} as a directory because {suffix!r} is an unsupported extension. "
+            "Single-file output requires a .json, .md, .markdown, or .csv extension.\n"
+        )
+    else:
+        assert captured.err == ""
+
+
 @pytest.mark.parametrize(
     ("suffix", "companion"),
     [(".json", ".md"), (".md", ".json"), (".csv", ".json"),
