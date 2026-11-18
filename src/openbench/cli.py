@@ -737,8 +737,11 @@ def build_parser() -> argparse.ArgumentParser:
     ana_parser.add_argument("--exploratory", action="store_true", help="Descriptive-only comparison of incompatible inputs.")
     ana_parser.add_argument("--exploratory-reason", type=str, default=None)
     ana_parser.add_argument("--output", type=str, default=None)
-    ana_parser.add_argument("--format", choices=["json", "markdown", "csv", "html"], default="json",
-                            help="Report format; v0.5.0 adds 'html' (one self-contained file).")
+    ana_parser.add_argument(
+        "--format", choices=["json", "markdown", "csv", "html"], default=None,
+        help="Report format. If omitted, infer it from --output (.html, .htm, .md, .markdown, "
+        ".csv, or .json). Other extensions and stdout default to JSON.",
+    )
 
     # 14. preferences (v0.4.0 new: create, validate, analyze)
     pref_parser = subparsers.add_parser(
@@ -1916,12 +1919,15 @@ def _handle_analyze(args: argparse.Namespace) -> int:
         }
 
     payload = redact_sensitive_data(payload)
-    if args.format == "html":
+    output_format = args.format or _format_from_output_extension(
+        args.output, ("json", "markdown", "csv", "html"), default="json",
+    )
+    if output_format == "html":
         from openbench.html_report import render_html
 
         text = render_html(payload)
     else:
-        text = render_analysis(payload, args.format)
+        text = render_analysis(payload, output_format)
     if args.output:
         out = validate_safe_output_path(args.output)
         for parent in out.resolve().parents:
@@ -1930,7 +1936,7 @@ def _handle_analyze(args: argparse.Namespace) -> int:
                 return 2
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(text, encoding="utf-8")
-        print(f"Analysis ({payload.get('analysis')}, {args.format}) written to: {out}")
+        print(f"Analysis ({payload.get('analysis')}, {output_format}) written to: {out}")
         if payload.get("analysis_mode") == "exploratory":
             print(f"Warning: {payload.get('banner')}", file=sys.stderr)
     else:
@@ -2145,14 +2151,23 @@ def _write_or_print(text: str, output: str | None, label: str) -> None:
         print(text, end="" if text.endswith("\n") else "\n")
 
 
-_OUTPUT_EXTENSION_FORMATS = {".html": "html", ".htm": "html", ".json": "json", ".csv": "csv"}
+_OUTPUT_EXTENSION_FORMATS = {
+    ".html": "html",
+    ".htm": "html",
+    ".json": "json",
+    ".csv": "csv",
+    ".md": "markdown",
+    ".markdown": "markdown",
+}
 
 
-def _format_from_output_extension(output: str | None, supported: tuple[str, ...]) -> str:
-    """Pick a report format from the --output extension; markdown if unknown or unsupported."""
+def _format_from_output_extension(
+    output: str | None, supported: tuple[str, ...], *, default: str = "markdown",
+) -> str:
+    """Pick a supported report format from the --output extension or use the default."""
     suffix = Path(output).suffix.lower() if output else ""
     chosen = _OUTPUT_EXTENSION_FORMATS.get(suffix)
-    return chosen if chosen in supported else "markdown"
+    return chosen if chosen in supported else default
 
 
 def _load_arms(args: argparse.Namespace) -> list[Any]:

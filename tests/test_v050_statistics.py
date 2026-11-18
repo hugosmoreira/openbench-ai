@@ -170,6 +170,53 @@ def test_rank_without_output_prints_markdown(tmp_path, capsys):
     assert capsys.readouterr().out.startswith("# OpenBench AI model ranking")
 
 
+@pytest.fixture
+def analyze_args(tmp_path):
+    a, b, _ = _three_files(tmp_path)
+    return ["analyze", "--results", str(a), str(b), "--metrics", "exact_match",
+            "--resamples", "300", "--permutations", "999"]
+
+
+@pytest.mark.parametrize(
+    ("name", "expected", "prefix"),
+    [
+        ("report.html", "html", "<!doctype html>"),
+        ("report.HTM", "html", "<!doctype html>"),
+        ("report.md", "markdown", "# OpenBench AI paired comparison"),
+        ("report.markdown", "markdown", "# OpenBench AI paired comparison"),
+        ("report.csv", "csv", "comparison_id,metric,"),
+        ("report.json", "json", "{"),
+        ("report.txt", "json", "{"),
+        ("report", "json", "{"),
+    ],
+)
+def test_analyze_format_follows_output_extension(tmp_path, capsys, analyze_args, name, expected, prefix):
+    output = tmp_path / name
+    assert main([*analyze_args, "--output", str(output)]) == 0
+    assert capsys.readouterr().out == f"Analysis (paired_comparison, {expected}) written to: {output}\n"
+    text = output.read_text(encoding="utf-8")
+    assert text.startswith(prefix)
+
+    reference = tmp_path / "explicit.out"
+    assert main([*analyze_args, "--format", expected, "--output", str(reference)]) == 0
+    assert _without_timestamp(text) == _without_timestamp(reference.read_text(encoding="utf-8"))
+
+
+def test_analyze_explicit_format_wins_over_extension(tmp_path, capsys, analyze_args):
+    output = tmp_path / "report.html"
+    assert main([*analyze_args, "--format", "markdown", "--output", str(output)]) == 0
+    assert capsys.readouterr().out == f"Analysis (paired_comparison, markdown) written to: {output}\n"
+    assert output.read_text(encoding="utf-8").startswith("# OpenBench AI paired comparison")
+
+
+def test_analyze_without_output_prints_json(capsys, analyze_args):
+    assert main(analyze_args) == 0
+    default = capsys.readouterr().out
+    assert json.loads(default)["analysis"] == "paired_comparison"
+    assert main([*analyze_args, "--format", "json"]) == 0
+    assert _without_timestamp(default) == _without_timestamp(capsys.readouterr().out)
+
+
 def test_rank_refuses_incompatible_inputs_without_exploratory(tmp_path, capsys):
     a, b, _ = _three_files(tmp_path)
     other = write_dataset(tmp_path / "other.jsonl", 30, tweak={"item_002": "changed"})

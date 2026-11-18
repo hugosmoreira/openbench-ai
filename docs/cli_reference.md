@@ -428,7 +428,7 @@ v0.4.0: statistically compare stored runs, repeat groups or evaluation files (no
 | `--exploratory` |  |  |  | Descriptive-only comparison of incompatible inputs. |
 | `--exploratory-reason` |  |  |  |  |
 | `--output` |  |  |  |  |
-| `--format` |  | `json` | `json`, `markdown`, `csv`, `html` | Report format; v0.5.0 adds 'html' (one self-contained file). |
+| `--format` |  |  | `json`, `markdown`, `csv`, `html` | Report format. If omitted, infer it from --output (.html, .htm, .md, .markdown, .csv, or .json). Other extensions and stdout default to JSON. |
 
 ## `openbench preferences`
 

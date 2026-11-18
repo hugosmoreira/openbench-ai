@@ -99,6 +99,8 @@ Evaluation files do not carry per-record hashes. Two evaluation files of the sam
 
 ## Output
 
+Without an explicit `--format`, `analyze` uses the extension of `--output` and defaults to JSON for stdout or unrecognized extensions.
+
 The JSON output contains:
 
 - arms;
