@@ -190,10 +190,14 @@ def analyze_args(tmp_path):
         ("report", "json", "{"),
     ],
 )
-def test_analyze_format_follows_output_extension(tmp_path, capsys, analyze_args, name, expected, prefix):
+def test_analyze_format_follows_output_extension(
+    tmp_path, capsys, analyze_args, name, expected, prefix
+):
     output = tmp_path / name
     assert main([*analyze_args, "--output", str(output)]) == 0
-    assert capsys.readouterr().out == f"Analysis (paired_comparison, {expected}) written to: {output}\n"
+    assert capsys.readouterr().out == (
+        f"Analysis (paired_comparison, {expected}) written to: {output}\n"
+    )
     text = output.read_text(encoding="utf-8")
     assert text.startswith(prefix)
 
@@ -205,7 +209,9 @@ def test_analyze_format_follows_output_extension(tmp_path, capsys, analyze_args,
 def test_analyze_explicit_format_wins_over_extension(tmp_path, capsys, analyze_args):
     output = tmp_path / "report.html"
     assert main([*analyze_args, "--format", "markdown", "--output", str(output)]) == 0
-    assert capsys.readouterr().out == f"Analysis (paired_comparison, markdown) written to: {output}\n"
+    assert capsys.readouterr().out == (
+        f"Analysis (paired_comparison, markdown) written to: {output}\n"
+    )
     assert output.read_text(encoding="utf-8").startswith("# OpenBench AI paired comparison")
 
 
