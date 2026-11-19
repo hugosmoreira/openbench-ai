@@ -446,6 +446,70 @@ def test_cli_preferences_compare_metric(tmp_path, capsys):
     assert "Agreement of `metric:exact_match`" in capsys.readouterr().out
 
 
+@pytest.fixture
+def preference_analysis_args(tmp_path, capsys):
+    _, _, out, key = _prefs_setup(tmp_path, capsys)
+    annotations = tmp_path / "annotations.jsonl"
+    rows = [
+        {"annotation_id": f"a-{i}", "task_id": task["task_id"],
+         "annotator_id": "rater", "outcome": "response_1"}
+        for i, task in enumerate(key["tasks"])
+    ]
+    annotations.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+    return [
+        "preferences", "analyze", "--key", str(out / "tasks.key.json"),
+        "--annotations", str(annotations), "--resamples", "200",
+    ]
+
+
+@pytest.mark.parametrize(
+    ("filename", "expected", "prefix"),
+    [
+        ("prefs.md", "markdown", "# OpenBench AI human preference analysis"),
+        ("prefs.markdown", "markdown", "# OpenBench AI human preference analysis"),
+        ("prefs.csv", "csv", "model_a,model_b,breakdown,"),
+        ("prefs.CSV", "csv", "model_a,model_b,breakdown,"),
+        ("prefs.json", "json", "{"),
+        ("prefs.txt", "json", "{"),
+        ("report", "json", "{"),
+        ("prefs.html", "json", "{"),
+    ],
+)
+def test_preferences_output_infers_format(
+    tmp_path, capsys, preference_analysis_args, filename, expected, prefix
+):
+    output = tmp_path / filename
+    assert main([*preference_analysis_args, "--output", str(output)]) == 0
+    captured = capsys.readouterr()
+    assert captured.out == f"Preference analysis ({expected}) written to: {output}\n"
+    assert captured.err == ""
+    text = output.read_text(encoding="utf-8")
+    assert text.startswith(prefix)
+
+    explicit = tmp_path / "explicit.out"
+    assert main([
+        *preference_analysis_args, "--format", expected, "--output", str(explicit),
+    ]) == 0
+    assert _without_timestamp(text) == _without_timestamp(explicit.read_text(encoding="utf-8"))
+
+
+def test_preferences_explicit_format_overrides_extension(
+    tmp_path, capsys, preference_analysis_args
+):
+    output = tmp_path / "prefs.md"
+    assert main([*preference_analysis_args, "--format", "csv", "--output", str(output)]) == 0
+    assert capsys.readouterr().out == f"Preference analysis (csv) written to: {output}\n"
+    assert output.read_text(encoding="utf-8").startswith("model_a,model_b,breakdown,")
+
+
+def test_preferences_stdout_defaults_to_json(capsys, preference_analysis_args):
+    assert main(preference_analysis_args) == 0
+    default = capsys.readouterr().out
+    assert json.loads(default)["analysis"] == "preference_analysis"
+    assert main([*preference_analysis_args, "--format", "json"]) == 0
+    assert _without_timestamp(default) == _without_timestamp(capsys.readouterr().out)
+
+
 # ---------------------------------------------------------------------------------------------
 # LLM judge (#19)
 # ---------------------------------------------------------------------------------------------

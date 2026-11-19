@@ -810,7 +810,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="v0.5.0: evaluation files for models A and B when the key was built from --results.",
     )
     pa.add_argument("--output", type=str, default=None)
-    pa.add_argument("--format", choices=["json", "markdown", "csv"], default="json")
+    pa.add_argument(
+        "--format", choices=["json", "markdown", "csv"], default=None,
+        help="Report format. If omitted, infer it from --output (.md, .markdown, .csv, or .json). "
+        "Stdout and filenames without a recognized extension default to JSON.",
+    )
 
     return parser
 
@@ -2168,12 +2172,15 @@ def _handle_preferences(args: argparse.Namespace) -> int:
     analysis["provenance"]["inputs"] += [
         {"annotation_file": str(a), "sha256": compute_file_sha256(a)} for a in args.annotations
     ] + [{"key_file": str(k), "sha256": compute_file_sha256(k)} for k in args.key]
-    text = render_preferences(analysis, args.format)
+    output_format = args.format or _format_from_output_extension(
+        args.output, ("json", "markdown", "csv"), default="json",
+    )
+    text = render_preferences(analysis, output_format)
     if args.output:
         out = validate_safe_output_path(args.output)
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(text, encoding="utf-8")
-        print(f"Preference analysis ({args.format}) written to: {out}")
+        print(f"Preference analysis ({output_format}) written to: {out}")
     else:
         print(text)
     return 0

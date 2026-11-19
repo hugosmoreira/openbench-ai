@@ -73,6 +73,8 @@ Files over 50 MB are refused. Parsing uses only `json` and `csv`, and imported t
 openbench preferences analyze --key private/tasks.key.json --annotations annotations.jsonl --elo --format markdown --output prefs.md
 ```
 
+Without `--format`, `preferences analyze` uses the `--output` extension (`.md`, `.markdown`, `.csv`, or `.json`) and defaults to JSON for stdout or filenames without a recognized extension.
+
 **Win rates**
 
 - The **headline** win rate of A over B is **task-weighted**. Each task's value is the mean of its annotations (A win = 1, tie = 0.5, B win = 0), so every task counts once even if it has more annotators.

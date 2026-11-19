@@ -491,4 +491,4 @@ Analyse validated annotations (win rates, agreement, optional Elo).
 | `--experiments-dir` |  |  |  | v0.5.0: where the key's runs are stored. |
 | `--metric-results` |  |  |  | v0.5.0: evaluation files for models A and B when the key was built from --results. |
 | `--output` |  |  |  |  |
-| `--format` |  | `json` | `json`, `markdown`, `csv` |  |
+| `--format` |  |  | `json`, `markdown`, `csv` | Report format. If omitted, infer it from --output (.md, .markdown, .csv, or .json). Stdout and filenames without a recognized extension default to JSON. |
